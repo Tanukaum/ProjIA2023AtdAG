@@ -8,6 +8,7 @@ London LHR
 Rome FCO <--
 
 """
+import random
 
 data = dict()
 population = dict()
@@ -23,12 +24,13 @@ def tratamento_txt():
 
 tratamento_txt()
 
-#item = 118, 118 - 12 = 106 = onde parar o loop
+#data possui todos os voos, totalizando 118
 #formato population = 12 conjutos de voos
 def criar_população():
-    for item in range(len(data)):
-        population[item] = data[item], data[item], data[item], data[item], data[item], data[item], data[item], data[item], data[item], data[item], data[item], data[item]
+    for item in range(100):
+        bloco_12 = [random.choice(data) for item in range(12)]
+        population.update(bloco_12)
 
 criar_população()
 
-print(population[0])
+
