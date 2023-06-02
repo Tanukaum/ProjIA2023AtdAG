@@ -1,0 +1,15 @@
+LIS -> FCO
+MAD -> FCO
+CDG -> FCO
+DUB -> FCO
+BRU -> FCO
+LHR -> FCO
+
+FCO -> LIS
+FCO -> MAD
+FCO -> CDG
+FCO -> DUB
+FCO -> BRU
+FCO -> LHR
+
+MENOR SCORE
