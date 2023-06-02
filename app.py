@@ -116,4 +116,4 @@ print('Population: ')
 print(population)
 print('')
 
-print(min(population[conjunto_voos][3] for conjunto_voos in range(tamanho_população)))
+print(min(population[conjunto_voos][3] for conjunto_voos in range(tamanho_população))) #melhor individuo da população
