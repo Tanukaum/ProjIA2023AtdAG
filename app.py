@@ -38,7 +38,7 @@ chance_cruzamento = 0.7
 chance_mutação = 0.1
 taxa_elitismo = 1  #Adicionado para observar influência da variação do elitismo
 
-numero_gerações = 200
+numero_gerações = 350
                 
 #Cria dicionarios apartir dos dados do arquivo txt
 # Os dicionarios separam as localidades de cada voo 
@@ -48,7 +48,8 @@ def tratamento_txt():
     for line in file_opened:
         line_split = line.split(',')
         
-        if line_split[0] == 'LIS':lisfco.update({len(lisfco):(line_split[0], line_split[1], line_split[2], line_split[3], line_split[4].split('\n')[0])})
+        if line_split[0] == 'LIS':
+            lisfco.update({len(lisfco):(line_split[0], line_split[1], line_split[2], line_split[3], line_split[4].split('\n')[0])})
         elif line_split[0] == 'MAD':
             madfco.update({len(madfco):(line_split[0], line_split[1], line_split[2], line_split[3], line_split[4].split('\n')[0])})
         elif line_split[0] == 'CDG':
@@ -99,11 +100,13 @@ def criar_população():
 #Gera a pontuação de um individuo da população, um individuo é um conjunto de 12 voos
 def fitness(individuo):
     score = 0
+    price = 0
     ida = list()
     volta = list()
     for voo in individuo:
         #não chega na posição do score
         if voo != score_position:  
+            price += int(individuo[voo][4])
             #voos ida, compara o horário de chegada
             if voo <= 5: 
                 tempo = individuo[voo][3].split(':')
@@ -118,7 +121,7 @@ def fitness(individuo):
     maior_ida = max(ida)
     menor_volta = min(volta)
     maior_volta = max(volta)
-    score = (maior_ida - menor_ida) + (maior_volta - menor_volta)
+    score = (maior_ida - menor_ida) + (maior_volta - menor_volta) + price
     individuo[score_position] = score
     return individuo
 
@@ -152,7 +155,9 @@ def mutação(individuo):
                     individuo[voo] = random.choice(brufco2)
                 else:
                     individuo[voo] = random.choice(lhrfco2)
-            
+
+
+#Realiza o torneio de dois individuos
 def torneio(individuo1, individuo2):
     #Se o random.random < torneio_escolha, melhor individuo é usado, se não o pior
     if random.random() < torneio_escolha:
@@ -236,20 +241,22 @@ def crossover_mutation_elitism(pop_cross):
 
     return nova_population
 
-
+#Obtém o melhor indivíduo da população
 def gera_ponto_gráfico(população):
     melhor_individuo = sorted(população.items(), key= lambda slot:slot[1][score_position])
 
-    return melhor_individuo[0][1][score_position]
+    return melhor_individuo[0][1]
 
 
 def gera_grafico():
     new_pop = dict()
     new_pop.update(population)
     for i in range(numero_gerações):
-        print('Geração: ' + str(i))
         geração.append(i)
-        pontuação.append(gera_ponto_gráfico(new_pop))
+        individuo_melhor = gera_ponto_gráfico(new_pop)
+        print('Geração: ' + str(i))
+        print(individuo_melhor)
+        pontuação.append(individuo_melhor[score_position])
         new_pop = crossover_mutation_elitism(new_pop)
     
     matplotlib.pyplot.plot(geração,pontuação)
