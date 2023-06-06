@@ -24,17 +24,19 @@ cdgfco2 = dict()
 dubfco2 = dict()
 brufco2 = dict()
 lhrfco2 = dict()
+####### Variável FIXA ########
+score_position = 12 # deve ser o ultimo slot de population[conjunto_voos]
 
 ###### Variáveis Editáveis ########
 tamanho_população = 50
-score_position = 12 # deve ser o ultimo slot de population[conjunto_voos]
-#Parametros Torneio
-#torneio_size = 2  #Tamanho que foi usado, implementação generica não realizada
-torneio_escolha = 0.75
 
-chance_cruzamento = 0.8
+#Parametros Torneio
+#torneio_size = 2  #Tamanho que foi usado, implementação genérica não realizada
+torneio_escolha = 0.75  #Chance do melhor ou pior ser escolhido no torneio
+
+chance_cruzamento = 0.7
 chance_mutação = 0.1
-taxa_elitismo = 1
+taxa_elitismo = 1  #Adicionado para observar influência da variação do elitismo
 
 numero_gerações = 200
                 
