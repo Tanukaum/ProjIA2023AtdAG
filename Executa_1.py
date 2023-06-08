@@ -1,5 +1,5 @@
 import random
-import matplotlib.pyplot ## pip install matplotlib
+import matplotlib.pyplot as plt ## pip install matplotlib
 from datetime import timedelta
 
 #população inicial que irá conter todos os conjuntos de voos
@@ -7,7 +7,9 @@ population = dict()
 
 #Listas usadas para gerar o gráfico
 geração = list()
-pontuação = list()
+melhor_pontuação = list()
+pior_pontuação = list()
+media_pontuação = list()
 
 #dicionários que separam as viagens origem e destino por localidade
 #voos ida
@@ -28,17 +30,18 @@ lhrfco2 = dict()
 score_position = 12 # deve ser o ultimo slot de population[conjunto_voos]
 
 ###### Variáveis Editáveis ########
-tamanho_população = 50
+tamanho_população = 100
 
 #Parametros Torneio
-#torneio_size = 2  #Tamanho que foi usado, implementação genérica não realizada
-torneio_escolha = 0.75  #Chance do melhor ou pior ser escolhido no torneio
+torneio_size = 7 #Tamanho usado para o torneio
+torneio_chance = 0.75  #Chance do melhor ou pior ser escolhido no torneio
 
 chance_cruzamento = 0.7
-chance_mutação = 0.1
+chance_mutação = 0.05
 taxa_elitismo = 1  #Adicionado para observar influência da variação do elitismo
 
-numero_gerações = 350
+numero_gerações = 120
+
                 
 #Cria dicionarios apartir dos dados do arquivo txt
 # Os dicionarios separam as localidades de cada voo 
@@ -94,9 +97,10 @@ def criar_população():
                             score_position: 0}
 
         bloco_voos_score = fitness(bloco_voos)
+        
         population.update({len(population): bloco_voos_score})
         
-
+     
 #Gera a pontuação de um individuo da população, um individuo é um conjunto de 12 voos
 def fitness(individuo):
     score = 0
@@ -122,7 +126,8 @@ def fitness(individuo):
     menor_volta = min(volta)
     maior_volta = max(volta)
     score = (maior_ida - menor_ida) + (maior_volta - menor_volta) + price
-    individuo[score_position] = score
+    individuo[score_position] = int(score)
+
     return individuo
 
 
@@ -157,112 +162,143 @@ def mutação(individuo):
                     individuo[voo] = random.choice(lhrfco2)
 
 
-#Realiza o torneio de dois individuos
-def torneio(individuo1, individuo2):
-    #Se o random.random < torneio_escolha, melhor individuo é usado, se não o pior
-    if random.random() < torneio_escolha:
-        #Melhor individuo é o menor
-        if individuo1[score_position] < individuo2[score_position]:
-            return individuo1
+#Realiza o torneio e cria a piscina de cruzamento
+def torneio(pop_torneio):
+    piscina = dict()
+    vencedores = dict()
+    while len(piscina) < tamanho_população:
+        vencedores.clear()
+        for lutadores in range(torneio_size):
+            vencedores.update({len(vencedores): random.choice(pop_torneio)})
+        
+        melhor = (sorted(vencedores.items(), key= lambda slot : slot[1][score_position]))[0][1] #[0][1]primeiro individuo do dict e informações do individuo, [0][0]primeiro individuo do dict e seu indice no dict desordenado
+        pior = (sorted(vencedores.items(), key= lambda slot : slot[1][score_position], reverse=True))[0][1]
+        
+        
+        #Seleciona o melhor indivíduo
+        if random.random() < torneio_chance:
+            piscina.update({len(piscina): melhor})
         else:
-            return individuo2
-    else:
-        #Pior individuo é o maior
-        if individuo1[score_position] < individuo2[score_position]:
-            return individuo2
-        else:
-            return individuo1
+            piscina.update({len(piscina): pior})
+        
+    return piscina
 
-#Realiza o crossover e mutação dos individuos
+
+#Se o melhor da nova for pior que o melhor antigo substitui o pior da nova pelo melhor antigo
+def elitismo_população(pop_anterior, pop_nova):
+    #Substitui o pior individuo da nova_população pelo melhor da pop_anterior
+    melhor_antigo = sorted(pop_anterior.items(), key= lambda slot :slot[1][score_position])#resultado é "tupla ordenada" crescente
+    melhor_novo = sorted(pop_nova.items(), key= lambda slot :slot[1][score_position])#resultado é "tupla ordenada" crescente
+    pior_novo = sorted(pop_anterior.items(), key= lambda slot :slot[1][score_position], reverse=True)#resultado é "tupla ordenada" decrescente
+
+    if melhor_antigo[0][1][score_position] < melhor_novo[0][1][score_position]:
+        pop_nova[pior_novo[0][0]] = melhor_antigo[0][1]
+    
+
+#Realiza o crossover e mutação dos indivíduos
 def crossover_mutation_elitism(pop_cross):
     nova_population = dict()
-
+    piscina = torneio(pop_cross)
+    
+    
     while len(nova_population) < tamanho_população:
-        # obtém o indicie da posição dos pais
-        position_pai = random.choice(list(pop_cross.keys()))
-        position_mae = random.choice(list(pop_cross.keys()))
-
-        #Se os pais não forem a mesma posição prossegue
-        while position_pai == position_mae:
-            position_mae = random.choice(list(pop_cross.keys()))
+        #Seleciona os índices do casal
+        pai_index = random.choice(list(piscina.keys()))
+        mae_index = random.choice(list(piscina.keys()))
+        while pai_index == mae_index:
+            mae_index = random.choice(list(piscina.keys()))
+        #Remove da piscina os individuos e dá pra variavel
+        pai_value = piscina.pop(pai_index)
+        mae_value = piscina.pop(mae_index)
         
-        pai = pop_cross[position_pai].copy()
-        mae = pop_cross[position_mae].copy()
-        
-        #Chances de crossover
+        #Realiza o crossover
         if random.random() < chance_cruzamento:
-            gene_vencedor = torneio(pai, mae)
-
-            filho1 = pai
-            filho2 = mae
-
-            #Formato do individuo não permite cortar em '0', ou não cortaria nada
+            #Formato do individuo não permite cortar em '0', ou os pais continuariam os mesmos
             ponto_de_corte = random.randint(1, score_position-1)    
+
+            filho1 = pai_value.copy()
+            filho2 = mae_value.copy()
 
             #Troca todos voos de f1 por f2 do ponto de corte até o score
             for corte in range(ponto_de_corte, score_position):
                 filho1[corte], filho2[corte] = filho2[corte], filho1[corte]
 
+            
             #Checa mutação, a chance de mutar esta dentro da função mutação
             mutação(filho1)
             mutação(filho2)
                         
             fitness(filho1)
             fitness(filho2)
-            #Pior filho morre 
-            if filho1[score_position] < filho2[score_position]:
-               melhor_filho = filho1
-            else:
-                melhor_filho = filho2
-            
-            nova_population.update({len(nova_population): gene_vencedor})
-            nova_population.update({len(nova_population): melhor_filho})
+            #Adiciona a nova_população os filhos
+            nova_population.update({len(nova_population): filho1})
+            nova_population.update({len(nova_population): filho2})
+
         
-        #Chance de crossover não atendida, apenas repassa os individuos
+        #Chance de crossover não atendida, apenas repassa os indivíduos
         else:
             #Checa mutação, a chance de mutar esta dentro da função
-            mutação(pai)
-            mutação(mae)
+            mutação(pai_value)
+            mutação(mae_value)
             
-            fitness(pai)
-            fitness(mae)
-
-            nova_population.update({len(nova_population):pai}) 
-            nova_population.update({len(nova_population):mae}) 
+            fitness(pai_value)
+            fitness(mae_value)
+            
+            nova_population.update({len(nova_population):pai_value}) 
+            nova_population.update({len(nova_population):mae_value}) 
+        
+    elitismo_população(pop_cross, nova_population)
     
-    #Substitui o pior individuo da nova_população pelo melhor da pop_cross
-    if random.random() < taxa_elitismo:
-        
-        pior_primeiro = sorted(nova_population.items(), key= lambda slot: slot[1][score_position], reverse=True) #resultado é "tupla ordenada"
-        melhor_primeiro = sorted(pop_cross.items(), key= lambda slot : slot[1][score_position])
-        
-        if pior_primeiro[0][1][score_position] > melhor_primeiro[0][1][score_position]:
-            nova_population[pior_primeiro[0][0]] = melhor_primeiro[0][1]
-
     return nova_population
 
 #Obtém o melhor indivíduo da população
 def gera_ponto_gráfico(população):
     melhor_individuo = sorted(população.items(), key= lambda slot:slot[1][score_position])
-
-    return melhor_individuo[0][1]
+    pior_individuo = sorted(população.items(), key= lambda slot:slot[1][score_position], reverse=True)
+    total = 0
+    for item in população:
+       total += (população[item][score_position])
+    
+    
+    return melhor_individuo[0][1], pior_individuo[0][1], total/tamanho_população
 
 
 def gera_grafico():
     new_pop = dict()
     new_pop.update(population)
+    best = ''
     for i in range(numero_gerações):
         geração.append(i)
-        individuo_melhor = gera_ponto_gráfico(new_pop)
-        print('Geração: ' + str(i))
-        print(individuo_melhor)
-        pontuação.append(individuo_melhor[score_position])
+        individuo_melhor, individuo_pior, media = gera_ponto_gráfico(new_pop)
+        melhor_pontuação.append(individuo_melhor[score_position])
+        #pior_pontuação.append(individuo_pior[score_position])
+        media_pontuação.append(media)
         new_pop = crossover_mutation_elitism(new_pop)
+
+    '''plt.plot(geração, melhor_pontuação)
+    plt.plot(geração,media_pontuação)
+    plt.show()
+'''
+    for individuo in new_pop:
+        if (new_pop[individuo][score_position]) == melhor_pontuação[-1]:
+            best = (new_pop[individuo])
+            break
     
-    matplotlib.pyplot.plot(geração,pontuação)
-    matplotlib.pyplot.show()   
+    return best, melhor_pontuação[-1]
+     
         
 ## Chamando as funções
 tratamento_txt()
 criar_população()
-gera_grafico()
+individuo, ponto = gera_grafico() #Aqui ocorrem as gerações
+#Comentar daqui para baixo para usar apenas um o gráfico de media e melhor individuo
+#Remover comentário se for rodar várias execuções com o roda_x.py
+try:
+    with open('resultados.txt', 'a+') as f:
+        f.writelines(str(individuo) + '\n')
+except:
+    with open('resultados.txt', 'a+') as f:
+        f.writelines(str(individuo)+ '\n')
+
+
+
